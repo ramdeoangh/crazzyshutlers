@@ -1,0 +1,362 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// AUTHENTICATION & USERS
+// ============================================
+
+model Role {
+  id          String   @id @default(cuid())
+  name        String   @unique // e.g., "admin", "member", "user"
+  description String?
+  permissions Json?    // Store permissions as JSON
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users User[]
+
+  @@map("roles")
+}
+
+model User {
+  id                String   @id @default(cuid())
+  email             String   @unique
+  password          String   // Hashed password
+  phone             String?
+  firstName         String
+  lastName          String
+  fullName          String   // Computed or stored
+  dateOfBirth       DateTime?
+  gender            String?  // "male", "female", "other"
+  address           String?
+  city              String?
+  state             String?
+  pincode           String?
+  profileImage      String?
+  isActive          Boolean  @default(true)
+  isEmailVerified   Boolean  @default(false)
+  isPhoneVerified   Boolean  @default(false)
+  emailVerifiedAt   DateTime?
+  phoneVerifiedAt   DateTime?
+  lastLoginAt       DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  roleId String
+  role   Role   @relation(fields: [roleId], references: [id])
+
+  // Relations
+  logins                Login[]
+  memberships           Membership[]
+  eventRegistrations    EventRegistration[]
+  tournamentRegistrations TournamentRegistration[]
+  payments              Payment[]
+  appLogs               AppLog[] @relation("UserLogs")
+
+  @@map("users")
+}
+
+model Login {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  email         String   // Store email for quick lookup
+  loginMethod   String   @default("email") // "email", "phone", "google", etc.
+  ipAddress     String?
+  userAgent     String?
+  deviceInfo    Json?    // Store device info as JSON
+  isSuccessful  Boolean  @default(true)
+  failureReason String?  // If login failed, reason
+  sessionToken  String?  // JWT or session token
+  expiresAt     DateTime?
+  loggedOutAt   DateTime?
+  createdAt     DateTime @default(now())
+
+  @@index([userId])
+  @@index([email])
+  @@index([sessionToken])
+  @@map("logins")
+}
+
+// ============================================
+// MEMBERSHIP & PAYMENTS
+// ============================================
+
+model Membership {
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  membershipType  String    @default("standard") // "standard", "premium", etc.
+  amount          Decimal   @db.Decimal(10, 2) // 100.00
+  status          String    @default("pending") // "pending", "paid", "expired", "cancelled"
+  paymentId       String?   // Reference to payment
+  payment         Payment?  @relation(fields: [paymentId], references: [id])
+  paidAt          DateTime?
+  expiresAt       DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@map("memberships")
+}
+
+model Payment {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount          Decimal  @db.Decimal(10, 2)
+  currency        String   @default("INR")
+  paymentMethod   String?  // "razorpay", "stripe", "cash", "bank_transfer"
+  paymentGateway  String?  // Gateway transaction ID
+  status          String   @default("pending") // "pending", "success", "failed", "refunded"
+  description     String?
+  metadata        Json?    // Store additional payment data
+  paidAt          DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  memberships         Membership[]
+  eventRegistrations   EventRegistration[] @relation("EventPayment")
+  tournamentRegistrations TournamentRegistration[] @relation("TournamentPayment")
+
+  @@index([userId])
+  @@index([status])
+  @@index([paymentGateway])
+  @@map("payments")
+}
+
+// ============================================
+// EVENTS & TOURNAMENTS
+// ============================================
+
+model Event {
+  id                String   @id @default(cuid())
+  title             String
+  description       String?  @db.Text
+  startDate         DateTime
+  endDate           DateTime
+  registrationStart DateTime?
+  registrationEnd   DateTime?
+  registrationUrl   String?
+  venue             String?
+  address           String?
+  city              String?
+  state             String?
+  isActive          Boolean  @default(true)
+  isFeatured        Boolean  @default(false)
+  isPublic          Boolean  @default(true)
+  categories        Json?    // JSON array of categories
+  matchFormat       String?
+  schedule          Json?    // JSON array of schedule items
+  rules             Json?    // JSON object for rules
+  prizes            Json?    // JSON object for prizes
+  maxParticipants   Int?
+  currentParticipants Int    @default(0)
+  registrationFee   Decimal? @db.Decimal(10, 2)
+  bannerImageId     String?  @unique
+  bannerImage       ImageGallery? @relation("EventBanner", fields: [bannerImageId], references: [id])
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  registrations EventRegistration[]
+  images        ImageGallery[] @relation("EventImages")
+  tournaments   Tournament[]
+
+  @@index([startDate])
+  @@index([isActive, isFeatured])
+  @@map("events")
+}
+
+model Tournament {
+  id                String   @id @default(cuid())
+  eventId           String
+  event             Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  name              String
+  description       String?  @db.Text
+  category          String   // "Men's Singles", "Women's Doubles", etc.
+  format            String?  // "knockout", "round-robin", "swiss"
+  startDate         DateTime
+  endDate           DateTime?
+  status            String   @default("upcoming") // "upcoming", "ongoing", "completed", "cancelled"
+  maxParticipants   Int?
+  currentParticipants Int    @default(0)
+  registrationFee   Decimal? @db.Decimal(10, 2)
+  rules             Json?    // Tournament-specific rules
+  bracket           Json?    // Tournament bracket data
+  results           Json?    // Tournament results
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  registrations TournamentRegistration[]
+
+  @@index([eventId])
+  @@index([status])
+  @@map("tournaments")
+}
+
+model TournamentRegistration {
+  id            String   @id @default(cuid())
+  tournamentId  String
+  tournament    Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  partnerId     String?  // For doubles/mixed
+  status        String   @default("pending")
+  paymentId     String?
+  payment       Payment? @relation("TournamentPayment", fields: [paymentId], references: [id])
+  metadata      Json?
+  registeredAt  DateTime @default(now())
+  confirmedAt   DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([tournamentId, userId])
+  @@index([tournamentId])
+  @@index([userId])
+  @@map("tournament_registrations")
+}
+
+model EventRegistration {
+  id            String   @id @default(cuid())
+  eventId       String
+  event         Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status        String   @default("pending") // "pending", "confirmed", "cancelled", "rejected"
+  paymentId     String?
+  payment       Payment? @relation("EventPayment", fields: [paymentId], references: [id])
+  metadata      Json?    // Additional registration data
+  registeredAt  DateTime @default(now())
+  confirmedAt   DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([eventId, userId])
+  @@index([eventId])
+  @@index([userId])
+  @@index([status])
+  @@map("event_registrations")
+}
+
+// ============================================
+// IMAGE GALLERY
+// ============================================
+
+model ImageGallery {
+  id          String   @id @default(cuid())
+  title       String
+  description String?  @db.Text
+  imageUrl    String
+  imageAlt    String?
+  type        String   // "banner", "event", "gallery", "profile", "news"
+  category    String?  // For organizing images
+  eventId     String?  // If related to event
+  event       Event?   @relation("EventImages", fields: [eventId], references: [id], onDelete: Cascade)
+  eventBanner Event?   @relation("EventBanner")
+  isActive    Boolean  @default(true)
+  order       Int      @default(0)
+  metadata    Json?    // Additional image data
+  uploadedBy  String?   // User ID who uploaded
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([type])
+  @@index([eventId])
+  @@index([isActive])
+  @@map("image_gallery")
+}
+
+// ============================================
+// SETTINGS
+// ============================================
+
+model Setting {
+  id          String   @id @default(cuid())
+  key         String   @unique // e.g., "membership_fee", "popup_enabled", "newsletter_subject"
+  category    String   @default("general") // "general", "email", "payment", "popup", "newsletter"
+  value       String?  @db.Text // Can store JSON string for complex settings
+  valueType   String   @default("string") // "string", "number", "boolean", "json"
+  description String?  @db.Text
+  isPublic    Boolean  @default(false) // Can be accessed without auth
+  metadata    Json?    // Additional setting metadata
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([category])
+  @@index([key])
+  @@map("settings")
+}
+
+// ============================================
+// APPLICATION LOGS
+// ============================================
+
+model AppLog {
+  id          String   @id @default(cuid())
+  userId      String?  // User who performed action (null for system)
+  user        User?    @relation("UserLogs", fields: [userId], references: [id], onDelete: SetNull)
+  action      String   // "login", "register", "payment", "event_create", etc.
+  entityType  String?  // "user", "event", "payment", etc.
+  entityId    String?  // ID of the entity
+  level       String   @default("info") // "debug", "info", "warn", "error", "critical"
+  message     String   @db.Text
+  data        Json?    // Store all activity data as JSON
+  ipAddress   String?
+  userAgent   String?
+  requestId   String?  // For tracking requests
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([action])
+  @@index([entityType, entityId])
+  @@index([level])
+  @@index([createdAt])
+  @@map("app_logs")
+}
+
+// ============================================
+// ADMIN (Keep existing for backward compatibility)
+// ============================================
+
+model Admin {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String
+  roleId    String?  // Can link to Role table
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("admins")
+}
+
+// ============================================
+// BANNERS (Keep for backward compatibility)
+// ============================================
+
+model Banner {
+  id          String   @id @default(cuid())
+  title       String
+  description String?  @db.Text
+  imageUrl    String
+  imageAlt    String?
+  type        String   // 'hero', 'tournament', 'page-header', 'feature-card'
+  page        String?
+  isActive    Boolean  @default(true)
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("banners")
+}
