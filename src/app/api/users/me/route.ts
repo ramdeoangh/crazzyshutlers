@@ -13,29 +13,6 @@ export async function GET(request: NextRequest) {
     const user = await prisma.user.findUnique({
       where: { id: userId },
       include: {
-        role: true,
-        memberships: {
-          orderBy: { createdAt: "desc" },
-          take: 1,
-        },
-      },
-      select: {
-        id: true,
-        email: true,
-        firstName: true,
-        lastName: true,
-        fullName: true,
-        phone: true,
-        dateOfBirth: true,
-        gender: true,
-        address: true,
-        city: true,
-        state: true,
-        pincode: true,
-        profileImage: true,
-        isActive: true,
-        isEmailVerified: true,
-        isPhoneVerified: true,
         role: {
           select: {
             id: true,
@@ -44,6 +21,8 @@ export async function GET(request: NextRequest) {
           },
         },
         memberships: {
+          orderBy: { createdAt: "desc" },
+          take: 1,
           select: {
             id: true,
             membershipType: true,

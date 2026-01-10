@@ -31,19 +31,6 @@ export default function NewEventPage() {
     },
   });
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
-      </div>
-    );
-  }
-
-  if (!isAuthenticated) {
-    router.push("/admin/login");
-    return null;
-  }
-
   const onSubmit = async (data: EventFormData) => {
     setSubmitting(true);
     const token = localStorage.getItem("admin_token");
@@ -75,6 +62,19 @@ export default function NewEventPage() {
       setSubmitting(false);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    router.push("/admin/login");
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -179,7 +179,7 @@ export default function NewEventPage() {
               </label>
               <textarea
                 {...register("categories")}
-                placeholder='["Men\'s Singles", "Women\'s Singles"]'
+                placeholder={JSON.stringify(["Men's Singles", "Women's Singles"])}
                 rows={3}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 font-mono text-sm"
               />

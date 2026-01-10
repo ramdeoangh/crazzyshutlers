@@ -55,27 +55,6 @@ export async function GET(request: NextRequest) {
         orderBy: { createdAt: "desc" },
         skip: (page - 1) * limit,
         take: limit,
-        select: {
-          id: true,
-          email: true,
-          firstName: true,
-          lastName: true,
-          fullName: true,
-          phone: true,
-          isActive: true,
-          isEmailVerified: true,
-          isPhoneVerified: true,
-          createdAt: true,
-          lastLoginAt: true,
-          role: true,
-          memberships: {
-            select: {
-              id: true,
-              status: true,
-              amount: true,
-            },
-          },
-        },
       }),
       prisma.user.count({ where }),
     ]);

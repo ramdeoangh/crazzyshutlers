@@ -49,15 +49,15 @@ export default function ProfilePage() {
       setFormData({
         firstName: user.firstName || "",
         lastName: user.lastName || "",
-        phone: user.phone || "",
-        dateOfBirth: user.dateOfBirth
-          ? new Date(user.dateOfBirth).toISOString().split("T")[0]
+        phone: (user as any).phone || "",
+        dateOfBirth: (user as any).dateOfBirth
+          ? new Date((user as any).dateOfBirth).toISOString().split("T")[0]
           : "",
-        gender: user.gender || "",
-        address: user.address || "",
-        city: user.city || "",
-        state: user.state || "",
-        pincode: user.pincode || "",
+        gender: (user as any).gender || "",
+        address: (user as any).address || "",
+        city: (user as any).city || "",
+        state: (user as any).state || "",
+        pincode: (user as any).pincode || "",
       });
     }
   }, [user]);

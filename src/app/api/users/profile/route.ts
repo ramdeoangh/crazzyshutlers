@@ -49,22 +49,6 @@ export async function PUT(request: NextRequest) {
       where: { id: userId },
       data: updateData,
       include: {
-        role: true,
-      },
-      select: {
-        id: true,
-        email: true,
-        firstName: true,
-        lastName: true,
-        fullName: true,
-        phone: true,
-        dateOfBirth: true,
-        gender: true,
-        address: true,
-        city: true,
-        state: true,
-        pincode: true,
-        profileImage: true,
         role: {
           select: {
             id: true,

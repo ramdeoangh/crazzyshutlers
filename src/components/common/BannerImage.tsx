@@ -45,6 +45,7 @@ const BannerImage: React.FC<BannerImageProps> = ({
       <div className="relative w-full h-full">
         <Image
           {...imageProps}
+          alt={alt || ""}
           fill
           sizes="100vw"
           unoptimized={isExternal} // External images may need optimization via cloud service
@@ -57,6 +58,7 @@ const BannerImage: React.FC<BannerImageProps> = ({
     return (
       <Image
         {...imageProps}
+        alt={alt || ""}
         width={width}
         height={height}
         unoptimized={isExternal}
@@ -69,6 +71,7 @@ const BannerImage: React.FC<BannerImageProps> = ({
     <div className="relative w-full h-full">
       <Image
         {...imageProps}
+        alt={alt || ""}
         fill
         sizes="100vw"
         unoptimized={isExternal}

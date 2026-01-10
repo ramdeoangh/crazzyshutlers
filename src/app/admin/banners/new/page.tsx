@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { useAuth } from "@/hooks/useAuth";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
@@ -144,11 +145,13 @@ export default function NewBannerPage() {
                 <p className="text-sm text-gray-500 mt-1">Uploading...</p>
               )}
               {imageUrl && (
-                <div className="mt-4">
-                  <img
+                <div className="mt-4 relative w-full h-48">
+                  <Image
                     src={imageUrl}
                     alt="Preview"
-                    className="max-w-full h-48 object-cover rounded-lg border border-gray-200"
+                    fill
+                    className="object-cover rounded-lg border border-gray-200"
+                    unoptimized
                   />
                 </div>
               )}

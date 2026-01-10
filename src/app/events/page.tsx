@@ -25,7 +25,7 @@ export default async function EventsPage() {
   };
 
   // Get registration status
-  const getRegistrationStatus = (event: any) => {
+  const getRegistrationStatus = (event: any): { status: "open" | "closed" | "upcoming" | "closing"; message: string } => {
     if (!event.registrationStart || !event.registrationEnd) {
       return { status: "open", message: "Register Now" };
     }

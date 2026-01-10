@@ -83,15 +83,6 @@ export async function PUT(
       include: {
         role: true,
       },
-      select: {
-        id: true,
-        email: true,
-        firstName: true,
-        lastName: true,
-        fullName: true,
-        isActive: true,
-        role: true,
-      },
     });
 
     await AppLogger.log({
