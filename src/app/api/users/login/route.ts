@@ -106,10 +106,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generate token
+    // Generate token (use email or phone as fallback)
     const token = generateToken({
       id: user.id,
-      email: user.email,
+      email: user.email || user.phone || emailOrPhone,
       name: user.fullName,
     });
 

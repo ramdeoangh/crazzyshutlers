@@ -123,15 +123,15 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Generate token
+    // Generate token (use email or phone as fallback)
     const token = generateToken({
       id: user.id,
-      email: user.email,
+      email: user.email || user.phone || `user_${user.id}@temp.local`,
       name: user.fullName,
     });
 
     // Log registration
-    await AppLogger.logRegistration(user.id, user.email, {
+    await AppLogger.logRegistration(user.id, user.email || user.phone || `user_${user.id}`, {
       ipAddress: login.ipAddress || undefined,
       userAgent: login.userAgent || undefined,
     });
