@@ -5,8 +5,8 @@ import BannerImage from "@/components/common/BannerImage";
 import BannerCarousel from "@/components/common/BannerCarousel";
 import { appConfig } from "@/config/app";
 import { ROUTES } from "@/utils/constants";
-import { getFeaturedEvent, getBanner } from "@/services/api";
-import { getAllDefaultBanners } from "@/utils/banners";
+import { prisma } from "@/lib/prisma";
+import { getDefaultBanner, getAllDefaultBanners } from "@/utils/banners";
 
 export const metadata: Metadata = {
   title: "Tournament",
@@ -17,12 +17,129 @@ export const metadata: Metadata = {
   },
 };
 
-export default async function TournamentPage() {
-  // Fetch featured event and tournament banner
-  const [featuredEvent, tournamentBanner] = await Promise.all([
-    getFeaturedEvent(),
-    getBanner("tournament", "tournament"),
-  ]);
+export default async function TournamentPage({
+  searchParams,
+}: {
+  searchParams: { id?: string };
+}) {
+  // Fetch event and tournament banners directly from database
+  let featuredEvent: any = null;
+  let tournamentBanner: { banners: string[] } = { banners: [] };
+
+  try {
+    // If id is provided, fetch that specific event, otherwise get featured event
+    if (searchParams?.id) {
+      const event = await prisma.event.findUnique({
+        where: { id: searchParams.id },
+        select: {
+          id: true,
+          title: true,
+          description: true,
+          startDate: true,
+          endDate: true,
+          registrationUrl: true,
+          registrationStart: true,
+          registrationEnd: true,
+          isActive: true,
+          isFeatured: true,
+          categories: true,
+          matchFormat: true,
+          schedule: true,
+          city: true,
+          state: true,
+          venue: true,
+          registrationFee: true,
+          currentParticipants: true,
+          maxParticipants: true,
+        },
+      });
+
+      if (event) {
+        featuredEvent = {
+          ...event,
+          startDate: event.startDate.toISOString(),
+          endDate: event.endDate.toISOString(),
+          registrationStart: event.registrationStart?.toISOString() || null,
+          registrationEnd: event.registrationEnd?.toISOString() || null,
+        };
+      }
+    } else {
+      // Fetch featured event
+      const featuredEvents = await prisma.event.findMany({
+        where: {
+          isFeatured: true,
+          isActive: true,
+        },
+        orderBy: { startDate: "asc" },
+        take: 1,
+        select: {
+          id: true,
+          title: true,
+          description: true,
+          startDate: true,
+          endDate: true,
+          registrationUrl: true,
+          registrationStart: true,
+          registrationEnd: true,
+          isActive: true,
+          isFeatured: true,
+          categories: true,
+          matchFormat: true,
+          schedule: true,
+          city: true,
+          state: true,
+          venue: true,
+          registrationFee: true,
+          currentParticipants: true,
+          maxParticipants: true,
+        },
+      });
+
+      if (featuredEvents.length > 0) {
+        featuredEvent = {
+          ...featuredEvents[0],
+          startDate: featuredEvents[0].startDate.toISOString(),
+          endDate: featuredEvents[0].endDate.toISOString(),
+          registrationStart: featuredEvents[0].registrationStart?.toISOString() || null,
+          registrationEnd: featuredEvents[0].registrationEnd?.toISOString() || null,
+        };
+      }
+    }
+
+    // Fetch all tournament banners from database
+    const dbBanners = await prisma.banner.findMany({
+      where: {
+        type: "tournament",
+        page: "tournament",
+        isActive: true,
+      },
+      orderBy: [{ order: "asc" }, { createdAt: "desc" }],
+      select: {
+        imageUrl: true,
+      },
+    });
+
+    // Get default banners
+    const defaultBanners = getAllDefaultBanners();
+    
+    // Combine database banners with default banners
+    // Database banners first, then default banners
+    const dbBannerUrls = dbBanners.map(b => b.imageUrl);
+    const allBannerUrls = [...dbBannerUrls, ...defaultBanners];
+    
+    // Remove duplicates while preserving order
+    const uniqueBanners = Array.from(new Set(allBannerUrls));
+    
+    tournamentBanner = {
+      banners: uniqueBanners.length > 0 ? uniqueBanners : defaultBanners,
+    };
+  } catch (error) {
+    console.error("Error fetching tournament page data:", error);
+    // Fallback to default banners on error
+    tournamentBanner = {
+      banners: getAllDefaultBanners(),
+    };
+  }
 
   // Format date range
   const formatDateRange = (start: string, end: string) => {
@@ -52,22 +169,13 @@ export default async function TournamentPage() {
   return (
     <div className="bg-gray-50 py-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Banner Image or Carousel */}
-        {tournamentBanner ? (
-          <div className="mb-12 relative w-full h-48 md:h-64 rounded-xl overflow-hidden">
-            <BannerImage
-              src={tournamentBanner.imageUrl}
-              alt={tournamentBanner.imageAlt || "Tournament banner"}
-              fill
-              priority
-              objectFit="cover"
-            />
-          </div>
-        ) : (
-          <div className="mb-12">
-            <BannerCarousel banners={getAllDefaultBanners()} height="h-48 md:h-64" />
-          </div>
-        )}
+        {/* Banner Carousel - Show all banners */}
+        <div className="mb-12">
+          <BannerCarousel 
+            banners={tournamentBanner.banners.length > 0 ? tournamentBanner.banners : getAllDefaultBanners()} 
+            height="h-48 md:h-64" 
+          />
+        </div>
 
         {/* Page Header */}
         <div className="text-center mb-12">

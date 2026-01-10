@@ -156,9 +156,9 @@ export default async function HomePage() {
     return { status: "open", message: "Register Now else pay more later" };
   };
 
-  // Show up to 6 upcoming events (excluding featured)
-  const otherEvents = (upcomingEvents || [])
-    .filter((e) => e && e.id && e.id !== featuredEvent?.id)
+  // Show up to 6 upcoming events (including all events)
+  const displayEvents = (upcomingEvents || [])
+    .filter((e) => e && e.id)
     .slice(0, 6)
     .map((event) => {
       const regStatus = getRegistrationStatus(event);
@@ -192,21 +192,21 @@ export default async function HomePage() {
           </div>
 
           {/* Upcoming Events Section - Before Why Join Us */}
-          {otherEvents.length > 0 && (
+          {displayEvents.length > 0 && (
             <div className="mb-16">
-              <div className="text-center mb-12">
+              <div className="mb-8">
                 <h2
                   id="events-heading"
-                  className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4"
+                  className="text-2xl font-bold text-gray-900 mb-2"
                 >
                   Upcoming Events
                 </h2>
-                <p className="text-lg text-gray-600 max-w-3xl mx-auto">
-                  Browse and register for our upcoming tournaments and competitions
+                <p className="text-gray-600">
+                  {displayEvents.length} event{displayEvents.length !== 1 ? "s" : ""} available
                 </p>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-                {otherEvents.map((event) => (
+                {displayEvents.map((event) => (
                   <EventCard key={event.id} event={event} />
                 ))}
               </div>

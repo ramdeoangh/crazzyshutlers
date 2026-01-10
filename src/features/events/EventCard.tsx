@@ -3,6 +3,7 @@ import Link from "next/link";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import { Event } from "@/services/api";
+import { appConfig } from "@/config/app";
 
 interface EventCardProps {
   event: Event & {
@@ -70,6 +71,14 @@ const EventCard = ({ event }: EventCardProps) => {
     }
   };
 
+  // Get registration URL - use event's URL if available, otherwise use default Google form
+  const getRegistrationUrl = () => {
+    if (event.registrationUrl && event.registrationUrl.trim() !== "" && !event.registrationUrl.includes("YOUR_FORM_ID")) {
+      return event.registrationUrl;
+    }
+    return appConfig.tournament.registrationFormUrl;
+  };
+
   return (
     <Card variant="elevated" className="hover:shadow-xl transition-shadow duration-300">
       <div className="flex flex-col h-full">
@@ -135,24 +144,15 @@ const EventCard = ({ event }: EventCardProps) => {
             >
               Details
             </Button>
-          ) : event.registrationUrl && !event.registrationUrl.includes("YOUR_FORM_ID") ? (
+          ) : (
             <a
-              href={event.registrationUrl}
+              href={getRegistrationUrl()}
               target="_blank"
               rel="noopener noreferrer"
               className="flex-1 inline-flex items-center justify-center rounded-lg font-semibold transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 px-4 py-2 bg-primary-600 text-white hover:bg-primary-700 shadow-md hover:shadow-lg cursor-pointer"
             >
               Register
             </a>
-          ) : (
-            <Button
-              href="/login?tab=register"
-              asLink
-              variant="primary"
-              className="flex-1"
-            >
-              Register
-            </Button>
           )}
           <Button
             href={`/tournament?id=${event.id}`}
