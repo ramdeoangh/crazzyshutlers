@@ -29,7 +29,7 @@ model Role {
 
 model User {
   id                String   @id @default(cuid())
-  email             String   @unique
+  email             String?  @unique
   password          String   // Hashed password
   phone             String?
   firstName         String
@@ -76,7 +76,7 @@ model Login {
   deviceInfo    Json?    // Store device info as JSON
   isSuccessful  Boolean  @default(true)
   failureReason String?  // If login failed, reason
-  sessionToken  String?  // JWT or session token
+  sessionToken  String?  @db.VarChar(500) // JWT or session token
   expiresAt     DateTime?
   loggedOutAt   DateTime?
   createdAt     DateTime @default(now())

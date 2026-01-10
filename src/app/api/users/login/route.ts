@@ -5,25 +5,33 @@ import { AppLogger } from "@/lib/logger";
 import { z } from "zod";
 
 const loginSchema = z.object({
-  email: z.string().email(),
+  emailOrPhone: z.string().min(1, "Email or phone number is required"),
   password: z.string().min(1),
 });
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { email, password } = loginSchema.parse(body);
+    const { emailOrPhone, password } = loginSchema.parse(body);
 
-    // Find user
-    const user = await prisma.user.findUnique({
-      where: { email },
-      include: { role: true },
-    });
+    // Determine if input is email or phone
+    const isEmail = emailOrPhone.includes("@");
+    
+    // Find user by email or phone
+    const user = isEmail
+      ? await prisma.user.findUnique({
+          where: { email: emailOrPhone },
+          include: { role: true },
+        })
+      : await prisma.user.findFirst({
+          where: { phone: emailOrPhone },
+          include: { role: true },
+        });
 
     if (!user) {
       await AppLogger.logLogin(
         null,
-        email,
+        emailOrPhone,
         false,
         "User not found",
         {
@@ -42,7 +50,7 @@ export async function POST(request: NextRequest) {
     if (!user.isActive) {
       await AppLogger.logLogin(
         user.id,
-        email,
+        user.email || emailOrPhone,
         false,
         "Account inactive",
         {
@@ -83,7 +91,7 @@ export async function POST(request: NextRequest) {
     if (!isValid) {
       await AppLogger.logLogin(
         user.id,
-        email,
+        user.email || emailOrPhone,
         false,
         "Invalid password",
         {
@@ -109,8 +117,8 @@ export async function POST(request: NextRequest) {
     const login = await prisma.login.create({
       data: {
         userId: user.id,
-        email: user.email,
-        loginMethod: "email",
+        email: user.email || emailOrPhone,
+        loginMethod: isEmail ? "email" : "phone",
         isSuccessful: true,
         sessionToken: token,
         expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
@@ -124,7 +132,7 @@ export async function POST(request: NextRequest) {
     // Log successful login
     await AppLogger.logLogin(
       user.id,
-      email,
+      user.email || emailOrPhone,
       true,
       undefined,
       {

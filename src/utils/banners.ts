@@ -5,32 +5,32 @@
 
 export const DEFAULT_BANNERS = {
   hero: [
-    "/ban_1.jpeg",
-    "/ban_2.jpeg",
-    "/ban_3.jpeg",
-    "/ban_4.jpeg",
-    "/ban_5.jpeg",
+    "/ban_1.jpg",
+    "/ban_2.jpg",
+    "/ban_3.jpg",
+    "/ban_4.jpg",
+    "/ban_5.jpg",
   ],
   tournament: [
-    "/ban_1.jpeg",
-    "/ban_2.jpeg",
-    "/ban_3.jpeg",
-    "/ban_4.jpeg",
-    "/ban_5.jpeg",
+    "/ban_1.jpg",
+    "/ban_2.jpg",
+    "/ban_3.jpg",
+    "/ban_4.jpg",
+    "/ban_5.jpg",
   ],
   "page-header": [
-    "/ban_1.jpeg",
-    "/ban_2.jpeg",
-    "/ban_3.jpeg",
-    "/ban_4.jpeg",
-    "/ban_5.jpeg",
+    "/ban_1.jpg",
+    "/ban_2.jpg",
+    "/ban_3.jpg",
+    "/ban_4.jpg",
+    "/ban_5.jpg",
   ],
   "feature-card": [
-    "/ban_1.jpeg",
-    "/ban_2.jpeg",
-    "/ban_3.jpeg",
-    "/ban_4.jpeg",
-    "/ban_5.jpeg",
+    "/ban_1.jpg",
+    "/ban_2.jpg",
+    "/ban_3.jpg",
+    "/ban_4.jpg",
+    "/ban_5.jpg",
   ],
 } as const;
 
@@ -50,11 +50,11 @@ export function getDefaultBanner(
  */
 export function getDefaultBannerByIndex(index: number): string {
   const banners = [
-    "/ban_1.jpeg",
-    "/ban_2.jpeg",
-    "/ban_3.jpeg",
-    "/ban_4.jpeg",
-    "/ban_5.jpeg",
+    "/ban_1.jpg",
+    "/ban_2.jpg",
+    "/ban_3.jpg",
+    "/ban_4.jpg",
+    "/ban_5.jpg",
   ];
   
   if (index < 1 || index > 5) {
@@ -70,11 +70,11 @@ export function getDefaultBannerByIndex(index: number): string {
  */
 export function getAllDefaultBanners(): string[] {
   return [
-    "/ban_1.jpeg",
-    "/ban_2.jpeg",
-    "/ban_3.jpeg",
-    "/ban_4.jpeg",
-    "/ban_5.jpeg",
+    "/ban_1.jpg",
+    "/ban_2.jpg",
+    "/ban_3.jpg",
+    "/ban_4.jpg",
+    "/ban_5.jpg",
   ];
 }
 
@@ -87,9 +87,9 @@ export function getDefaultBannerWithFallback(
 ): string {
   // All banners are JPEG format
   if (index >= 1 && index <= 5) {
-    return `/ban_${index}.jpeg`;
+    return `/ban_${index}.jpg`;
   }
   
-  return "/ban_1.jpeg"; // Fallback
+  return "/ban_1.jpg"; // Fallback
 }
 

@@ -10,7 +10,30 @@ import { useUserAuth } from "@/hooks/useUserAuth";
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const { user, loading, logout, isAuthenticated } = useUserAuth();
+
+  // Get user initials for avatar
+  const getUserInitials = () => {
+    if (!user) return "U";
+    const first = user.firstName?.[0]?.toUpperCase() || "";
+    const last = user.lastName?.[0]?.toUpperCase() || "";
+    return first + last || user.email?.[0]?.toUpperCase() || "U";
+  };
+
+  // Close dropdown on escape key
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setIsUserMenuOpen(false);
+      }
+    };
+
+    if (isUserMenuOpen) {
+      document.addEventListener("keydown", handleEscape);
+      return () => document.removeEventListener("keydown", handleEscape);
+    }
+  }, [isUserMenuOpen]);
 
   return (
     <nav
@@ -45,23 +68,75 @@ const Navbar = () => {
             ))}
             
             {/* Login/User Menu */}
-            <div className="ml-4 flex items-center space-x-2">
+            <div className="ml-4 flex items-center">
               {!loading && (
                 <>
                   {isAuthenticated && user ? (
-                    <div className="flex items-center space-x-3">
-                      <Link
-                        href="/profile"
-                        className="px-4 py-2 rounded-lg text-gray-700 hover:text-primary-600 hover:bg-primary-50 font-medium transition-colors duration-200"
-                      >
-                        {user.firstName || "Profile"}
-                      </Link>
+                    <div className="relative">
                       <button
-                        onClick={logout}
-                        className="px-4 py-2 rounded-lg text-gray-700 hover:text-primary-600 hover:bg-primary-50 font-medium transition-colors duration-200"
+                        onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                        className="flex items-center space-x-2 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        aria-label="User menu"
+                        aria-expanded={isUserMenuOpen}
                       >
-                        Logout
+                        <div className="h-9 w-9 rounded-full bg-primary-600 flex items-center justify-center text-white font-semibold text-sm">
+                          {getUserInitials()}
+                        </div>
+                        <span className="hidden lg:block text-sm font-medium text-gray-700">
+                          {user.firstName || user.fullName || "User"}
+                        </span>
+                        <svg
+                          className={`h-4 w-4 text-gray-500 transition-transform ${
+                            isUserMenuOpen ? "rotate-180" : ""
+                          }`}
+                          fill="none"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path d="M19 9l-7 7-7-7" />
+                        </svg>
                       </button>
+
+                      {/* Dropdown Menu */}
+                      {isUserMenuOpen && (
+                        <>
+                          <div
+                            className="fixed inset-0 z-10"
+                            onClick={() => setIsUserMenuOpen(false)}
+                          />
+                          <div className="absolute right-0 mt-2 w-56 rounded-lg bg-white shadow-lg ring-1 ring-black ring-opacity-5 z-20">
+                            <div className="py-1">
+                              <div className="px-4 py-3 border-b border-gray-200">
+                                <p className="text-sm font-semibold text-gray-900">
+                                  {user.fullName || `${user.firstName} ${user.lastName}`}
+                                </p>
+                                <p className="text-sm text-gray-500 truncate">
+                                  {user.email}
+                                </p>
+                              </div>
+                              <Link
+                                href="/profile"
+                                className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                                onClick={() => setIsUserMenuOpen(false)}
+                              >
+                                Profile
+                              </Link>
+                              <button
+                                onClick={() => {
+                                  logout();
+                                  setIsUserMenuOpen(false);
+                                }}
+                                className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                              >
+                                Logout
+                              </button>
+                            </div>
+                          </div>
+                        </>
+                      )}
                     </div>
                   ) : (
                     <Link
@@ -126,12 +201,25 @@ const Navbar = () => {
               <div className="px-4 py-2 border-t border-gray-200 mt-2">
                 {isAuthenticated && user ? (
                   <div className="space-y-2">
+                    <div className="flex items-center space-x-3 px-4 py-3 bg-gray-50 rounded-lg">
+                      <div className="h-10 w-10 rounded-full bg-primary-600 flex items-center justify-center text-white font-semibold">
+                        {getUserInitials()}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-gray-900 truncate">
+                          {user.fullName || `${user.firstName} ${user.lastName}`}
+                        </p>
+                        <p className="text-xs text-gray-500 truncate">
+                          {user.email}
+                        </p>
+                      </div>
+                    </div>
                     <Link
                       href="/profile"
                       className="block px-4 py-3 rounded-lg text-gray-700 hover:text-primary-600 hover:bg-primary-50 font-medium transition-colors duration-200"
                       onClick={() => setIsMenuOpen(false)}
                     >
-                      {user.fullName || "Profile"}
+                      Profile
                     </Link>
                     <button
                       onClick={() => {

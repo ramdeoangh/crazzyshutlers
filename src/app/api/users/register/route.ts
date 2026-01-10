@@ -7,40 +7,65 @@ import { generateToken } from "@/lib/auth";
 import { z } from "zod";
 
 const registerSchema = z.object({
-  email: z.string().email(),
   password: z.string().min(6),
   firstName: z.string().min(1),
   lastName: z.string().min(1),
   phone: z.string().optional(),
-  dateOfBirth: z.string().optional(),
-  gender: z.string().optional(),
-  address: z.string().optional(),
-  city: z.string().optional(),
-  state: z.string().optional(),
-  pincode: z.string().optional(),
-  payMembershipFee: z.boolean().optional(),
-});
+  email: z.string().email().optional().or(z.literal("")),
+}).refine(
+  (data) => {
+    // At least one of email or phone must be provided
+    const hasEmail = data.email && data.email.trim() !== "";
+    const hasPhone = data.phone && data.phone.trim() !== "";
+    return hasEmail || hasPhone;
+  },
+  {
+    message: "Either email or phone number must be provided",
+    path: ["email"], // This will show error on email field
+  }
+);
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const data = registerSchema.parse(body);
 
-    // Check if user already exists
-    const existingUser = await prisma.user.findUnique({
-      where: { email: data.email },
-    });
+    // Check if phone is provided and if user exists by phone
+    if (data.phone && data.phone.trim() !== "") {
+      const existingUserByPhone = await prisma.user.findFirst({
+        where: { phone: data.phone },
+      });
 
-    if (existingUser) {
-      await AppLogger.logSystem(
-        "register",
-        `Registration attempt with existing email: ${data.email}`,
-        "warn"
-      );
-      return NextResponse.json(
-        { error: "Email already registered" },
-        { status: 400 }
-      );
+      if (existingUserByPhone) {
+        await AppLogger.logSystem(
+          "register",
+          `Registration attempt with existing phone: ${data.phone}`,
+          "warn"
+        );
+        return NextResponse.json(
+          { error: "Phone number already registered" },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Check if email is provided and if user exists by email
+    if (data.email && data.email.trim() !== "") {
+      const existingUserByEmail = await prisma.user.findUnique({
+        where: { email: data.email },
+      });
+
+      if (existingUserByEmail) {
+        await AppLogger.logSystem(
+          "register",
+          `Registration attempt with existing email: ${data.email}`,
+          "warn"
+        );
+        return NextResponse.json(
+          { error: "Email already registered" },
+          { status: 400 }
+        );
+      }
     }
 
     // Get member role (or create if doesn't exist)
@@ -60,21 +85,26 @@ export async function POST(request: NextRequest) {
     // Hash password
     const hashedPassword = await hashPassword(data.password);
 
-    // Create user
+    // Ensure at least email or phone is provided (validation should catch this, but double-check)
+    const hasEmail = data.email && data.email.trim() !== "";
+    const hasPhone = data.phone && data.phone.trim() !== "";
+    
+    if (!hasEmail && !hasPhone) {
+      return NextResponse.json(
+        { error: "Either email or phone number must be provided" },
+        { status: 400 }
+      );
+    }
+
+    // Create user - email can be null if phone is provided
     const user = await prisma.user.create({
       data: {
-        email: data.email,
+        email: hasEmail ? data.email : null,
         password: hashedPassword, // Store hashed password
         firstName: data.firstName,
         lastName: data.lastName,
         fullName: `${data.firstName} ${data.lastName}`,
-        phone: data.phone,
-        dateOfBirth: data.dateOfBirth ? new Date(data.dateOfBirth) : null,
-        gender: data.gender,
-        address: data.address,
-        city: data.city,
-        state: data.state,
-        pincode: data.pincode,
+        phone: hasPhone ? data.phone : null,
         roleId: memberRole.id,
       },
     });
@@ -99,45 +129,6 @@ export async function POST(request: NextRequest) {
       email: user.email,
       name: user.fullName,
     });
-
-    // Handle membership fee payment (if opted)
-    let membership = null;
-    if (data.payMembershipFee) {
-      try {
-        const membershipFee = await SettingsManager.getMembershipFee();
-
-        membership = await prisma.membership.create({
-          data: {
-            userId: user.id,
-            amount: membershipFee,
-            status: "pending", // User needs to complete payment
-          },
-        });
-
-        await AppLogger.log({
-          userId: user.id,
-          action: "membership_created",
-          entityType: "membership",
-          entityId: membership.id,
-          message: `Membership created with pending payment: ${membershipFee} INR`,
-          data: {
-            membershipId: membership.id,
-            amount: Number(membershipFee),
-            status: "pending",
-            type: "membership_fee",
-          },
-        });
-      } catch (error) {
-        // Log error but don't fail registration
-        console.error("Error creating membership:", error);
-        await AppLogger.logError(
-          "register",
-          "Failed to create membership during registration",
-          error,
-          user.id
-        );
-      }
-    }
 
     // Log registration
     await AppLogger.logRegistration(user.id, user.email, {
@@ -166,15 +157,9 @@ export async function POST(request: NextRequest) {
         email: user.email,
         name: user.fullName,
         role: memberRole.name,
+        needsProfileCompletion: !hasEmail || !hasPhone || !user.email || !user.phone,
       },
       token,
-      membership: membership
-        ? {
-            id: membership.id,
-            amount: membership.amount,
-            status: membership.status,
-          }
-        : null,
     });
 
     // Set HTTP-only cookie

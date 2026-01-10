@@ -5,19 +5,12 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Button from "@/components/ui/Button";
 
 interface RegisterFormData {
-  email: string;
   password: string;
   confirmPassword: string;
   firstName: string;
   lastName: string;
   phone: string;
-  dateOfBirth: string;
-  gender: string;
-  address: string;
-  city: string;
-  state: string;
-  pincode: string;
-  payMembershipFee: boolean;
+  email: string;
 }
 
 function LoginPageContent() {
@@ -37,25 +30,18 @@ function LoginPageContent() {
 
   // Login form state
   const [loginData, setLoginData] = useState({
-    email: "",
+    emailOrPhone: "",
     password: "",
   });
 
   // Registration form state
   const [registerData, setRegisterData] = useState<RegisterFormData>({
-    email: "",
     password: "",
     confirmPassword: "",
     firstName: "",
     lastName: "",
     phone: "",
-    dateOfBirth: "",
-    gender: "",
-    address: "",
-    city: "",
-    state: "",
-    pincode: "",
-    payMembershipFee: false,
+    email: "",
   });
 
   const handleLoginChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -83,7 +69,10 @@ function LoginPageContent() {
       const response = await fetch("/api/users/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(loginData),
+        body: JSON.stringify({
+          emailOrPhone: loginData.emailOrPhone,
+          password: loginData.password,
+        }),
       });
 
       const data = await response.json();
@@ -108,6 +97,21 @@ function LoginPageContent() {
     e.preventDefault();
     setError(null);
 
+    // Validate that at least email or phone is provided
+    const hasEmail = registerData.email && registerData.email.trim() !== "";
+    const hasPhone = registerData.phone && registerData.phone.trim() !== "";
+    
+    if (!hasEmail && !hasPhone) {
+      setError("Either email or mobile number must be provided");
+      return;
+    }
+
+    // Validate email format if provided
+    if (hasEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(registerData.email)) {
+      setError("Please enter a valid email address");
+      return;
+    }
+
     if (registerData.password !== registerData.confirmPassword) {
       setError("Passwords do not match");
       return;
@@ -125,18 +129,11 @@ function LoginPageContent() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          email: registerData.email,
           password: registerData.password,
           firstName: registerData.firstName,
           lastName: registerData.lastName,
-          phone: registerData.phone || undefined,
-          dateOfBirth: registerData.dateOfBirth || undefined,
-          gender: registerData.gender || undefined,
-          address: registerData.address || undefined,
-          city: registerData.city || undefined,
-          state: registerData.state || undefined,
-          pincode: registerData.pincode || undefined,
-          payMembershipFee: registerData.payMembershipFee,
+          phone: registerData.phone.trim() || undefined,
+          email: registerData.email.trim() || undefined,
         }),
       });
 
@@ -150,6 +147,11 @@ function LoginPageContent() {
 
       if (data.token) {
         localStorage.setItem("user_token", data.token);
+      }
+
+      // Store flag for profile completion notification
+      if (data.user?.needsProfileCompletion) {
+        localStorage.setItem("show_profile_completion", "true");
       }
 
       router.push("/profile");
@@ -284,20 +286,20 @@ function LoginPageContent() {
 
                   <div>
                     <label
-                      htmlFor="login-email"
+                      htmlFor="login-emailOrPhone"
                       className="block text-sm font-medium text-gray-700 mb-2"
                     >
-                      Email Address
+                      Email or Mobile Number
                     </label>
                     <input
-                      type="email"
-                      id="login-email"
-                      name="email"
+                      type="text"
+                      id="login-emailOrPhone"
+                      name="emailOrPhone"
                       required
-                      value={loginData.email}
+                      value={loginData.emailOrPhone}
                       onChange={handleLoginChange}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
-                      placeholder="your@email.com"
+                      placeholder="your@email.com or mobile number"
                     />
                   </div>
 
@@ -373,7 +375,7 @@ function LoginPageContent() {
                 </p>
               </div>
 
-              <div className="bg-white py-8 px-6 shadow-lg rounded-xl max-h-[80vh] overflow-y-auto">
+              <div className="bg-white py-8 px-6 shadow-lg rounded-xl">
                 <form onSubmit={handleRegisterSubmit} className="space-y-6">
                   {error && (
                     <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
@@ -425,16 +427,38 @@ function LoginPageContent() {
                       htmlFor="register-email"
                       className="block text-sm font-medium text-gray-700 mb-1"
                     >
-                      Email *
+                      Email <span className="text-gray-500 text-xs">(Optional)</span>
                     </label>
                     <input
                       type="email"
                       id="register-email"
                       name="email"
-                      required
                       value={registerData.email}
                       onChange={handleRegisterChange}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                      placeholder="your@email.com"
+                    />
+                  </div>
+
+                  {/* Phone */}
+                  <div>
+                    <label
+                      htmlFor="phone"
+                      className="block text-sm font-medium text-gray-700 mb-1"
+                    >
+                      Mobile Number <span className="text-gray-500 text-xs">(Optional)</span>
+                    </label>
+                    <p className="text-xs text-gray-500 mb-1">
+                      At least one of Email or Mobile Number is required
+                    </p>
+                    <input
+                      type="tel"
+                      id="phone"
+                      name="phone"
+                      value={registerData.phone}
+                      onChange={handleRegisterChange}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                      placeholder="10-digit mobile number"
                     />
                   </div>
 
@@ -474,152 +498,6 @@ function LoginPageContent() {
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                       />
                     </div>
-                  </div>
-
-                  {/* Phone */}
-                  <div>
-                    <label
-                      htmlFor="phone"
-                      className="block text-sm font-medium text-gray-700 mb-1"
-                    >
-                      Phone Number
-                    </label>
-                    <input
-                      type="tel"
-                      id="phone"
-                      name="phone"
-                      value={registerData.phone}
-                      onChange={handleRegisterChange}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                    />
-                  </div>
-
-                  {/* Date of Birth & Gender */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label
-                        htmlFor="dateOfBirth"
-                        className="block text-sm font-medium text-gray-700 mb-1"
-                      >
-                        Date of Birth
-                      </label>
-                      <input
-                        type="date"
-                        id="dateOfBirth"
-                        name="dateOfBirth"
-                        value={registerData.dateOfBirth}
-                        onChange={handleRegisterChange}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                      />
-                    </div>
-                    <div>
-                      <label
-                        htmlFor="gender"
-                        className="block text-sm font-medium text-gray-700 mb-1"
-                      >
-                        Gender
-                      </label>
-                      <select
-                        id="gender"
-                        name="gender"
-                        value={registerData.gender}
-                        onChange={handleRegisterChange}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                      >
-                        <option value="">Select</option>
-                        <option value="male">Male</option>
-                        <option value="female">Female</option>
-                        <option value="other">Other</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Address */}
-                  <div>
-                    <label
-                      htmlFor="address"
-                      className="block text-sm font-medium text-gray-700 mb-1"
-                    >
-                      Address
-                    </label>
-                    <input
-                      type="text"
-                      id="address"
-                      name="address"
-                      value={registerData.address}
-                      onChange={handleRegisterChange}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                    />
-                  </div>
-
-                  {/* City, State, Pincode */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div>
-                      <label
-                        htmlFor="city"
-                        className="block text-sm font-medium text-gray-700 mb-1"
-                      >
-                        City
-                      </label>
-                      <input
-                        type="text"
-                        id="city"
-                        name="city"
-                        value={registerData.city}
-                        onChange={handleRegisterChange}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                      />
-                    </div>
-                    <div>
-                      <label
-                        htmlFor="state"
-                        className="block text-sm font-medium text-gray-700 mb-1"
-                      >
-                        State
-                      </label>
-                      <input
-                        type="text"
-                        id="state"
-                        name="state"
-                        value={registerData.state}
-                        onChange={handleRegisterChange}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                      />
-                    </div>
-                    <div>
-                      <label
-                        htmlFor="pincode"
-                        className="block text-sm font-medium text-gray-700 mb-1"
-                      >
-                        Pincode
-                      </label>
-                      <input
-                        type="text"
-                        id="pincode"
-                        name="pincode"
-                        value={registerData.pincode}
-                        onChange={handleRegisterChange}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Membership Fee */}
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      id="payMembershipFee"
-                      name="payMembershipFee"
-                      checked={registerData.payMembershipFee}
-                      onChange={handleRegisterChange}
-                      className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
-                    />
-                    <label
-                      htmlFor="payMembershipFee"
-                      className="ml-2 block text-sm text-gray-700"
-                    >
-                      Pay membership fee (₹100) - Optional
-                    </label>
                   </div>
 
                   {/* Submit Button */}

@@ -5,15 +5,13 @@ import { AppLogger } from "@/lib/logger";
 import { z } from "zod";
 
 const updateProfileSchema = z.object({
+  email: z.string().email().optional(),
   firstName: z.string().min(1).optional(),
   lastName: z.string().min(1).optional(),
   phone: z.string().optional(),
-  dateOfBirth: z.string().optional(),
-  gender: z.string().optional(),
   address: z.string().optional(),
   city: z.string().optional(),
   state: z.string().optional(),
-  pincode: z.string().optional(),
   profileImage: z.string().optional(),
 });
 
@@ -30,18 +28,38 @@ export async function PUT(request: NextRequest) {
     // Update user
     const userId = auth.payload.id || auth.payload.userId;
     const updateData: any = {};
+    
+    // Check if email is being updated and if it's already taken
+    if (data.email !== undefined && data.email.trim() !== "") {
+      const existingUser = await prisma.user.findUnique({
+        where: { email: data.email },
+      });
+      if (existingUser && existingUser.id !== userId) {
+        return NextResponse.json(
+          { error: "Email already in use" },
+          { status: 400 }
+        );
+      }
+      updateData.email = data.email;
+    }
+    
     if (data.firstName) updateData.firstName = data.firstName;
     if (data.lastName) {
       updateData.lastName = data.lastName;
-      updateData.fullName = `${data.firstName || ""} ${data.lastName}`.trim();
+      // Get current firstName if not being updated
+      const currentUser = await prisma.user.findUnique({ where: { id: userId } });
+      const firstName = data.firstName || currentUser?.firstName || "";
+      updateData.fullName = `${firstName} ${data.lastName}`.trim();
+    } else if (data.firstName) {
+      // If only firstName is updated, update fullName
+      const currentUser = await prisma.user.findUnique({ where: { id: userId } });
+      const lastName = currentUser?.lastName || "";
+      updateData.fullName = `${data.firstName} ${lastName}`.trim();
     }
     if (data.phone !== undefined) updateData.phone = data.phone;
-    if (data.dateOfBirth) updateData.dateOfBirth = new Date(data.dateOfBirth);
-    if (data.gender !== undefined) updateData.gender = data.gender;
     if (data.address !== undefined) updateData.address = data.address;
     if (data.city !== undefined) updateData.city = data.city;
     if (data.state !== undefined) updateData.state = data.state;
-    if (data.pincode !== undefined) updateData.pincode = data.pincode;
     if (data.profileImage !== undefined)
       updateData.profileImage = data.profileImage;
 
