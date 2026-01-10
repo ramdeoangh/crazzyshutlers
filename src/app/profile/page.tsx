@@ -6,6 +6,7 @@ import { useUserAuth } from "@/hooks/useUserAuth";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import Image from "next/image";
+import { useToast } from "@/components/ui/ToastProvider";
 
 interface ProfileData {
   email: string;
@@ -16,7 +17,12 @@ interface ProfileData {
   city: string;
   state: string;
   profileImage: string;
+  sportsHobby: string;
+  proficiencyLevel: string;
 }
+
+const SPORTS_HOBBIES = ["cricket", "badminton", "pickleball"];
+const PROFICIENCY_LEVELS = ["beginner", "intermediate", "advanced"];
 
 // Indian States List
 const INDIAN_STATES = [
@@ -62,6 +68,7 @@ export default function ProfilePage() {
   const router = useRouter();
   const { user, loading: authLoading, logout, isAuthenticated } =
     useUserAuth();
+  const { showToast } = useToast();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -78,7 +85,16 @@ export default function ProfilePage() {
     city: "",
     state: "",
     profileImage: "",
+    sportsHobby: "",
+    proficiencyLevel: "",
   });
+
+  // Check if profile needs completion
+  const needsCompletion = () => {
+    if (!user) return false;
+    const userAny = user as any;
+    return !userAny.email || !userAny.city || !userAny.state || !userAny.address;
+  };
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -91,9 +107,27 @@ export default function ProfilePage() {
     const showProfileCompletion = localStorage.getItem("show_profile_completion");
     if (showProfileCompletion === "true") {
       setShowNotification(true);
+      showToast(
+        "Please complete your profile by adding email, city, state, and address",
+        "info",
+        8000
+      );
       localStorage.removeItem("show_profile_completion");
+    } else if (user && needsCompletion()) {
+      // Show toast reminder after a delay if profile is incomplete
+      const timer = setTimeout(() => {
+        if (needsCompletion()) {
+          showToast(
+            "Your profile is incomplete. Please add email, city, state, and address to complete it.",
+            "warning",
+            6000
+          );
+        }
+      }, 3000); // Show after 3 seconds
+
+      return () => clearTimeout(timer);
     }
-  }, []);
+  }, [showToast, user]);
 
   useEffect(() => {
     if (user) {
@@ -107,6 +141,8 @@ export default function ProfilePage() {
         city: userAny.city || "",
         state: userAny.state || "",
         profileImage: userAny.profileImage || "",
+        sportsHobby: userAny.sportsHobby || "",
+        proficiencyLevel: userAny.proficiencyLevel || "",
       });
     }
   }, [user]);
@@ -115,6 +151,17 @@ export default function ProfilePage() {
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
     const { name, value } = e.target;
+    
+    // Format phone number - only allow digits
+    if (name === "phone") {
+      const digitsOnly = value.replace(/\D/g, "");
+      setFormData((prev) => ({
+        ...prev,
+        [name]: digitsOnly.slice(0, 10), // Max 10 digits
+      }));
+      return;
+    }
+    
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
@@ -172,6 +219,27 @@ export default function ProfilePage() {
     setSuccess(false);
     setSaving(true);
 
+    // Validate email if provided
+    if (formData.email && formData.email.trim() !== "") {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(formData.email)) {
+        setError("Please enter a valid email address");
+        setSaving(false);
+        return;
+      }
+    }
+
+    // Validate phone if provided
+    if (formData.phone && formData.phone.trim() !== "") {
+      const phoneRegex = /^[6-9]\d{9}$/;
+      const cleanPhone = formData.phone.replace(/\D/g, "");
+      if (cleanPhone.length !== 10 || !phoneRegex.test(cleanPhone)) {
+        setError("Mobile number must be 10 digits starting with 6, 7, 8, or 9");
+        setSaving(false);
+        return;
+      }
+    }
+
     try {
       const token = localStorage.getItem("user_token");
       const response = await fetch("/api/users/profile", {
@@ -180,7 +248,10 @@ export default function ProfilePage() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          phone: formData.phone.replace(/\D/g, ""), // Send only digits
+        }),
       });
 
       const data = await response.json();
@@ -191,12 +262,14 @@ export default function ProfilePage() {
 
       setSuccess(true);
       setShowNotification(false);
+      showToast("Profile updated successfully!", "success");
       setTimeout(() => setSuccess(false), 3000);
       
       // Refresh user data
       window.location.reload();
     } catch (err: any) {
       setError(err.message || "Failed to update profile");
+      showToast(err.message || "Failed to update profile", "error");
     } finally {
       setSaving(false);
     }
@@ -256,10 +329,27 @@ export default function ProfilePage() {
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="mb-8">
-          <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">
-            My Profile
-          </h1>
-          <p className="text-gray-600">Manage your account information</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">
+                My Profile
+              </h1>
+              <p className="text-gray-600">Manage your account information</p>
+            </div>
+            {needsCompletion() && (
+              <div className="relative">
+                <div className="bg-yellow-500 text-white px-4 py-2 rounded-lg flex items-center space-x-2">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  <span className="font-medium">Complete Profile</span>
+                </div>
+                <div className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">
+                  !
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -349,17 +439,22 @@ export default function ProfilePage() {
                   htmlFor="email"
                   className="block text-sm font-medium text-gray-700 mb-1"
                 >
-                  Email *
+                  Email {needsCompletion() && !formData.email && (
+                    <span className="text-red-500">*</span>
+                  )}
                 </label>
                 <input
                   type="email"
                   id="email"
                   name="email"
-                  required
                   value={formData.email}
                   onChange={handleChange}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                  placeholder="your@email.com"
                 />
+                {needsCompletion() && !formData.email && (
+                  <p className="text-xs text-red-500 mt-1">Email is required to complete your profile</p>
+                )}
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -466,6 +561,53 @@ export default function ProfilePage() {
                     {INDIAN_STATES.map((state) => (
                       <option key={state} value={state}>
                         {state}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label
+                    htmlFor="sportsHobby"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
+                    Sports Hobby
+                  </label>
+                  <select
+                    id="sportsHobby"
+                    name="sportsHobby"
+                    value={formData.sportsHobby}
+                    onChange={handleChange}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                  >
+                    <option value="">Select Sport</option>
+                    {SPORTS_HOBBIES.map((sport) => (
+                      <option key={sport} value={sport}>
+                        {sport.charAt(0).toUpperCase() + sport.slice(1)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label
+                    htmlFor="proficiencyLevel"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
+                    Proficiency Level
+                  </label>
+                  <select
+                    id="proficiencyLevel"
+                    name="proficiencyLevel"
+                    value={formData.proficiencyLevel}
+                    onChange={handleChange}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                  >
+                    <option value="">Select Level</option>
+                    {PROFICIENCY_LEVELS.map((level) => (
+                      <option key={level} value={level}>
+                        {level.charAt(0).toUpperCase() + level.slice(1)}
                       </option>
                     ))}
                   </select>

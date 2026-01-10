@@ -5,14 +5,16 @@ import { AppLogger } from "@/lib/logger";
 import { z } from "zod";
 
 const updateProfileSchema = z.object({
-  email: z.string().email().optional(),
+  email: z.string().email().optional().or(z.literal("")),
   firstName: z.string().min(1).optional(),
   lastName: z.string().min(1).optional(),
-  phone: z.string().optional(),
+  phone: z.string().regex(/^[6-9]\d{9}$/).optional().or(z.literal("")),
   address: z.string().optional(),
   city: z.string().optional(),
   state: z.string().optional(),
   profileImage: z.string().optional(),
+  sportsHobby: z.enum(["cricket", "badminton", "pickleball"]).optional().or(z.literal("")),
+  proficiencyLevel: z.enum(["beginner", "intermediate", "advanced"]).optional().or(z.literal("")),
 });
 
 export async function PUT(request: NextRequest) {
@@ -62,6 +64,10 @@ export async function PUT(request: NextRequest) {
     if (data.state !== undefined) updateData.state = data.state;
     if (data.profileImage !== undefined)
       updateData.profileImage = data.profileImage;
+    if (data.sportsHobby !== undefined)
+      updateData.sportsHobby = data.sportsHobby || null;
+    if (data.proficiencyLevel !== undefined)
+      updateData.proficiencyLevel = data.proficiencyLevel || null;
 
     const user = await prisma.user.update({
       where: { id: userId },

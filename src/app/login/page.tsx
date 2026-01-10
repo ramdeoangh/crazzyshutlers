@@ -10,7 +10,6 @@ interface RegisterFormData {
   firstName: string;
   lastName: string;
   phone: string;
-  email: string;
 }
 
 function LoginPageContent() {
@@ -41,7 +40,6 @@ function LoginPageContent() {
     firstName: "",
     lastName: "",
     phone: "",
-    email: "",
   });
 
   const handleLoginChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -53,6 +51,17 @@ function LoginPageContent() {
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
     const { name, value, type } = e.target;
+    
+    // Format phone number - only allow digits
+    if (name === "phone") {
+      const digitsOnly = value.replace(/\D/g, "");
+      setRegisterData((prev) => ({
+        ...prev,
+        [name]: digitsOnly.slice(0, 10), // Max 10 digits
+      }));
+      return;
+    }
+    
     setRegisterData((prev) => ({
       ...prev,
       [name]:
@@ -97,18 +106,17 @@ function LoginPageContent() {
     e.preventDefault();
     setError(null);
 
-    // Validate that at least email or phone is provided
-    const hasEmail = registerData.email && registerData.email.trim() !== "";
-    const hasPhone = registerData.phone && registerData.phone.trim() !== "";
+    // Validate mobile number (10 digits, Indian format)
+    const phoneRegex = /^[6-9]\d{9}$/;
+    const cleanPhone = registerData.phone.replace(/\D/g, ""); // Remove non-digits
     
-    if (!hasEmail && !hasPhone) {
-      setError("Either email or mobile number must be provided");
+    if (!registerData.phone || cleanPhone.length !== 10) {
+      setError("Please enter a valid 10-digit mobile number");
       return;
     }
 
-    // Validate email format if provided
-    if (hasEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(registerData.email)) {
-      setError("Please enter a valid email address");
+    if (!phoneRegex.test(cleanPhone)) {
+      setError("Mobile number must start with 6, 7, 8, or 9");
       return;
     }
 
@@ -132,8 +140,7 @@ function LoginPageContent() {
           password: registerData.password,
           firstName: registerData.firstName,
           lastName: registerData.lastName,
-          phone: registerData.phone.trim() || undefined,
-          email: registerData.email.trim() || undefined,
+          phone: registerData.phone.replace(/\D/g, ""), // Send only digits
         }),
       });
 
@@ -421,45 +428,29 @@ function LoginPageContent() {
                     </div>
                   </div>
 
-                  {/* Email */}
-                  <div>
-                    <label
-                      htmlFor="register-email"
-                      className="block text-sm font-medium text-gray-700 mb-1"
-                    >
-                      Email <span className="text-gray-500 text-xs">(Optional)</span>
-                    </label>
-                    <input
-                      type="email"
-                      id="register-email"
-                      name="email"
-                      value={registerData.email}
-                      onChange={handleRegisterChange}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                      placeholder="your@email.com"
-                    />
-                  </div>
-
                   {/* Phone */}
                   <div>
                     <label
                       htmlFor="phone"
                       className="block text-sm font-medium text-gray-700 mb-1"
                     >
-                      Mobile Number <span className="text-gray-500 text-xs">(Optional)</span>
+                      Mobile Number *
                     </label>
-                    <p className="text-xs text-gray-500 mb-1">
-                      At least one of Email or Mobile Number is required
-                    </p>
                     <input
                       type="tel"
                       id="phone"
                       name="phone"
+                      required
                       value={registerData.phone}
                       onChange={handleRegisterChange}
+                      maxLength={10}
+                      pattern="[6-9]\d{9}"
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                      placeholder="10-digit mobile number"
+                      placeholder="10-digit mobile number (e.g., 9876543210)"
                     />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Enter 10-digit Indian mobile number starting with 6, 7, 8, or 9
+                    </p>
                   </div>
 
                   {/* Password */}

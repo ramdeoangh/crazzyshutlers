@@ -42,6 +42,8 @@ model User {
   state             String?
   pincode           String?
   profileImage      String?
+  sportsHobby       String?  // "cricket", "badminton", "pickleball"
+  proficiencyLevel  String?  // "beginner", "intermediate", "advanced"
   isActive          Boolean  @default(true)
   isEmailVerified   Boolean  @default(false)
   isPhoneVerified   Boolean  @default(false)

@@ -10,62 +10,29 @@ const registerSchema = z.object({
   password: z.string().min(6),
   firstName: z.string().min(1),
   lastName: z.string().min(1),
-  phone: z.string().optional(),
-  email: z.string().email().optional().or(z.literal("")),
-}).refine(
-  (data) => {
-    // At least one of email or phone must be provided
-    const hasEmail = data.email && data.email.trim() !== "";
-    const hasPhone = data.phone && data.phone.trim() !== "";
-    return hasEmail || hasPhone;
-  },
-  {
-    message: "Either email or phone number must be provided",
-    path: ["email"], // This will show error on email field
-  }
-);
+  phone: z.string().regex(/^[6-9]\d{9}$/, "Mobile number must be 10 digits starting with 6, 7, 8, or 9"),
+});
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const data = registerSchema.parse(body);
 
-    // Check if phone is provided and if user exists by phone
-    if (data.phone && data.phone.trim() !== "") {
-      const existingUserByPhone = await prisma.user.findFirst({
-        where: { phone: data.phone },
-      });
+    // Check if user exists by phone
+    const existingUserByPhone = await prisma.user.findFirst({
+      where: { phone: data.phone },
+    });
 
-      if (existingUserByPhone) {
-        await AppLogger.logSystem(
-          "register",
-          `Registration attempt with existing phone: ${data.phone}`,
-          "warn"
-        );
-        return NextResponse.json(
-          { error: "Phone number already registered" },
-          { status: 400 }
-        );
-      }
-    }
-
-    // Check if email is provided and if user exists by email
-    if (data.email && data.email.trim() !== "") {
-      const existingUserByEmail = await prisma.user.findUnique({
-        where: { email: data.email },
-      });
-
-      if (existingUserByEmail) {
-        await AppLogger.logSystem(
-          "register",
-          `Registration attempt with existing email: ${data.email}`,
-          "warn"
-        );
-        return NextResponse.json(
-          { error: "Email already registered" },
-          { status: 400 }
-        );
-      }
+    if (existingUserByPhone) {
+      await AppLogger.logSystem(
+        "register",
+        `Registration attempt with existing phone: ${data.phone}`,
+        "warn"
+      );
+      return NextResponse.json(
+        { error: "Phone number already registered" },
+        { status: 400 }
+      );
     }
 
     // Get member role (or create if doesn't exist)
@@ -85,26 +52,15 @@ export async function POST(request: NextRequest) {
     // Hash password
     const hashedPassword = await hashPassword(data.password);
 
-    // Ensure at least email or phone is provided (validation should catch this, but double-check)
-    const hasEmail = data.email && data.email.trim() !== "";
-    const hasPhone = data.phone && data.phone.trim() !== "";
-    
-    if (!hasEmail && !hasPhone) {
-      return NextResponse.json(
-        { error: "Either email or phone number must be provided" },
-        { status: 400 }
-      );
-    }
-
-    // Create user - email can be null if phone is provided
+    // Create user - phone is required, email is null initially
     const user = await prisma.user.create({
       data: {
-        email: hasEmail ? data.email : null,
+        email: null, // Email will be added later in profile
         password: hashedPassword, // Store hashed password
         firstName: data.firstName,
         lastName: data.lastName,
         fullName: `${data.firstName} ${data.lastName}`,
-        phone: hasPhone ? data.phone : null,
+        phone: data.phone,
         roleId: memberRole.id,
       },
     });
@@ -113,8 +69,8 @@ export async function POST(request: NextRequest) {
     const login = await prisma.login.create({
       data: {
         userId: user.id,
-        email: user.email || user.phone || `user_${user.id}@temp.local`,
-        loginMethod: hasEmail ? "email" : "phone",
+        email: user.phone || `user_${user.id}@temp.local`,
+        loginMethod: "phone",
         isSuccessful: true,
         ipAddress: request.headers.get("x-forwarded-for") || 
                    request.headers.get("x-real-ip") || 
@@ -157,7 +113,7 @@ export async function POST(request: NextRequest) {
         email: user.email,
         name: user.fullName,
         role: memberRole.name,
-        needsProfileCompletion: !hasEmail || !hasPhone || !user.email || !user.phone,
+        needsProfileCompletion: !user.email || !user.city || !user.state || !user.address,
       },
       token,
     });
