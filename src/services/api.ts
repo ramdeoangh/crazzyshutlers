@@ -49,14 +49,26 @@ export async function getEvents(params?: {
   if (params?.featured) searchParams.set("featured", "true");
   if (params?.active) searchParams.set("active", "true");
 
-  const url = `${API_BASE}/api/events${searchParams.toString() ? `?${searchParams}` : ""}`;
-  const response = await fetch(url, { cache: "no-store" });
+  const baseUrl = API_BASE || (typeof window !== "undefined" ? "" : process.env.NEXT_PUBLIC_APP_URL || "");
+  const url = `${baseUrl}/api/events${searchParams.toString() ? `?${searchParams}` : ""}`;
   
-  if (!response.ok) {
-    throw new Error("Failed to fetch events");
+  try {
+    const response = await fetch(url, { 
+      cache: "no-store",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch events: ${response.status}`);
+    }
+    
+    return response.json();
+  } catch (error) {
+    console.error("Error fetching events:", error);
+    return [];
   }
-  
-  return response.json();
 }
 
 /**
@@ -99,14 +111,26 @@ export async function getBanners(params?: {
   if (params?.page) searchParams.set("page", params.page);
   if (params?.active) searchParams.set("active", "true");
 
-  const url = `${API_BASE}/api/banners${searchParams.toString() ? `?${searchParams}` : ""}`;
-  const response = await fetch(url, { cache: "no-store" });
+  const baseUrl = API_BASE || (typeof window !== "undefined" ? "" : process.env.NEXT_PUBLIC_APP_URL || "");
+  const url = `${baseUrl}/api/banners${searchParams.toString() ? `?${searchParams}` : ""}`;
   
-  if (!response.ok) {
-    throw new Error("Failed to fetch banners");
+  try {
+    const response = await fetch(url, { 
+      cache: "no-store",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch banners: ${response.status}`);
+    }
+    
+    return response.json();
+  } catch (error) {
+    console.error("Error fetching banners:", error);
+    return [];
   }
-  
-  return response.json();
 }
 
 /**

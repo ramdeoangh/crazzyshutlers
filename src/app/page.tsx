@@ -6,7 +6,8 @@ import EventCard from "@/features/events/EventCard";
 import BannerCarousel from "@/components/common/BannerCarousel";
 import { appConfig } from "@/config/app";
 import { ROUTES } from "@/utils/constants";
-import { getFeaturedEvent, getBanner, getEvents } from "@/services/api";
+import { prisma } from "@/lib/prisma";
+import { getDefaultBanner } from "@/utils/banners";
 
 export const metadata: Metadata = {
   title: "Home",
@@ -14,12 +15,120 @@ export const metadata: Metadata = {
 };
 
 export default async function HomePage() {
-  // Fetch featured event, hero banner, and upcoming events
-  const [featuredEvent, heroBanner, upcomingEvents] = await Promise.all([
-    getFeaturedEvent(),
-    getBanner("hero", "home"),
-    getEvents({ active: true }),
-  ]);
+  // Fetch data directly from database for better reliability
+  let featuredEvent = null;
+  let heroBanner = null;
+  let upcomingEvents: any[] = [];
+
+  try {
+    // Fetch featured event
+    const featuredEvents = await prisma.event.findMany({
+      where: {
+        isFeatured: true,
+        isActive: true,
+      },
+      orderBy: { startDate: "asc" },
+      take: 1,
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        startDate: true,
+        endDate: true,
+        registrationUrl: true,
+        registrationStart: true,
+        registrationEnd: true,
+        isActive: true,
+        isFeatured: true,
+        categories: true,
+        matchFormat: true,
+        schedule: true,
+        city: true,
+        state: true,
+        venue: true,
+        registrationFee: true,
+        currentParticipants: true,
+        maxParticipants: true,
+      },
+    });
+    featuredEvent = featuredEvents.length > 0 ? {
+      ...featuredEvents[0],
+      startDate: featuredEvents[0].startDate.toISOString(),
+      endDate: featuredEvents[0].endDate.toISOString(),
+      registrationStart: featuredEvents[0].registrationStart?.toISOString() || null,
+      registrationEnd: featuredEvents[0].registrationEnd?.toISOString() || null,
+    } : null;
+
+    // Fetch hero banner
+    const banners = await prisma.banner.findMany({
+      where: {
+        type: "hero",
+        page: "home",
+        isActive: true,
+      },
+      orderBy: [{ order: "asc" }, { createdAt: "desc" }],
+      take: 1,
+    });
+    
+    if (banners.length > 0) {
+      heroBanner = banners[0];
+    } else {
+      // Fallback to default banner
+      const defaultBannerUrl = getDefaultBanner("hero");
+      heroBanner = {
+        id: "default-hero",
+        title: "Hero Banner",
+        description: null,
+        imageUrl: defaultBannerUrl,
+        imageAlt: "hero banner",
+        type: "hero" as const,
+        page: "home",
+        isActive: true,
+        order: 0,
+      };
+    }
+
+    // Fetch active events
+    const events = await prisma.event.findMany({
+      where: {
+        isActive: true,
+      },
+      orderBy: { startDate: "asc" },
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        startDate: true,
+        endDate: true,
+        registrationUrl: true,
+        registrationStart: true,
+        registrationEnd: true,
+        isActive: true,
+        isFeatured: true,
+        categories: true,
+        matchFormat: true,
+        schedule: true,
+        city: true,
+        state: true,
+        venue: true,
+        registrationFee: true,
+        currentParticipants: true,
+        maxParticipants: true,
+      },
+    });
+    
+    // Convert Date objects to ISO strings
+    upcomingEvents = events.map(event => ({
+      ...event,
+      startDate: event.startDate.toISOString(),
+      endDate: event.endDate.toISOString(),
+      registrationStart: event.registrationStart?.toISOString() || null,
+      registrationEnd: event.registrationEnd?.toISOString() || null,
+    }));
+  } catch (error) {
+    console.error("Error fetching home page data:", error);
+    // Continue with null/empty values - page will still render
+  }
 
   // Get registration status helper
   const getRegistrationStatus = (event: any): { status: "open" | "closed" | "upcoming" | "closing"; message: string } => {
@@ -52,8 +161,8 @@ export default async function HomePage() {
   };
 
   // Show up to 6 upcoming events (excluding featured)
-  const otherEvents = upcomingEvents
-    .filter((e) => e.id !== featuredEvent?.id)
+  const otherEvents = (upcomingEvents || [])
+    .filter((e) => e && e.id && e.id !== featuredEvent?.id)
     .slice(0, 6)
     .map((event) => {
       const regStatus = getRegistrationStatus(event);
