@@ -52,11 +52,11 @@ export default async function HomePage() {
       },
     });
     featuredEvent = featuredEvents.length > 0 ? {
-      ...featuredEvents[0],
+      id: featuredEvents[0].id,
+      title: featuredEvents[0].title,
       startDate: featuredEvents[0].startDate.toISOString(),
       endDate: featuredEvents[0].endDate.toISOString(),
-      registrationStart: featuredEvents[0].registrationStart?.toISOString() || null,
-      registrationEnd: featuredEvents[0].registrationEnd?.toISOString() || null,
+      registrationUrl: featuredEvents[0].registrationUrl,
     } : null;
 
     // Fetch hero banner
@@ -71,20 +71,16 @@ export default async function HomePage() {
     });
     
     if (banners.length > 0) {
-      heroBanner = banners[0];
+      heroBanner = {
+        imageUrl: banners[0].imageUrl,
+        imageAlt: banners[0].imageAlt,
+      };
     } else {
       // Fallback to default banner
       const defaultBannerUrl = getDefaultBanner("hero");
       heroBanner = {
-        id: "default-hero",
-        title: "Hero Banner",
-        description: null,
         imageUrl: defaultBannerUrl,
         imageAlt: "hero banner",
-        type: "hero" as const,
-        page: "home",
-        isActive: true,
-        order: 0,
       };
     }
 
