@@ -113,8 +113,8 @@ export async function POST(request: NextRequest) {
     const login = await prisma.login.create({
       data: {
         userId: user.id,
-        email: user.email,
-        loginMethod: "email",
+        email: user.email || user.phone || `user_${user.id}@temp.local`,
+        loginMethod: hasEmail ? "email" : "phone",
         isSuccessful: true,
         ipAddress: request.headers.get("x-forwarded-for") || 
                    request.headers.get("x-real-ip") || 
